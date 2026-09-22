@@ -110,15 +110,15 @@ class SchedulePanel(ctk.CTkFrame):
     # ── Drawing ──────────────────────────────────────────────────────────────
 
     def _initial_draw(self):
-        self._draw()
+        self._redraw()
         self._scroll_to_now()
 
-    def _draw(self):
+    def _redraw(self):
         c = self.canvas
         c.delete("all")
         w = c.winfo_width()
         if w < 20:
-            self.after(80, self._draw)
+            self.after(80, self._redraw)
             return
 
         is_dark  = ctk.get_appearance_mode() == "Dark"
@@ -239,7 +239,7 @@ class SchedulePanel(ctk.CTkFrame):
             self.db.add_event(
                 self.current_date.isoformat(), start, end, name.strip(), color
             )
-            self._draw()
+            self._redraw()
 
     def _show_event_popup(self, event_id: int, rx: int, ry: int):
         events = self.db.get_events(self.current_date.isoformat())
@@ -264,29 +264,29 @@ class SchedulePanel(ctk.CTkFrame):
 
     def _delete_event(self, event_id: int):
         self.db.delete_event(event_id)
-        self._draw()
+        self._redraw()
 
     # ── Navigation ───────────────────────────────────────────────────────────
 
     def _on_resize(self, _event):
         if self._resize_job:
             self.after_cancel(self._resize_job)
-        self._resize_job = self.after(60, self._draw)
+        self._resize_job = self.after(60, self._redraw)
 
     def _prev_day(self):
         self.current_date -= timedelta(days=1)
         self._update_date_label()
-        self._draw()
+        self._redraw()
 
     def _next_day(self):
         self.current_date += timedelta(days=1)
         self._update_date_label()
-        self._draw()
+        self._redraw()
 
     def _go_today(self):
         self.current_date = date.today()
         self._update_date_label()
-        self._draw()
+        self._redraw()
         self._scroll_to_now()
 
     def _scroll_to_now(self):
