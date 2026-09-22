@@ -58,7 +58,6 @@ class ShaBeeApp(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _on_close(self):
-        self.schedule._save_all()
         self.db.close()
         self.destroy()
 
