@@ -23,7 +23,6 @@ class HabitsPanel(ctk.CTkFrame):
     def _build(self):
         self.configure(fg_color=("gray96", "gray13"))
 
-        # ── Header ──────────────────────────────────────────────────────────
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", padx=16, pady=(14, 6))
 
@@ -36,7 +35,6 @@ class HabitsPanel(ctk.CTkFrame):
             command=self._add_habit_dialog
         ).pack(side="right")
 
-        # Subheader: today's date
         ctk.CTkLabel(
             self,
             text=date.today().strftime("%A, %B %-d"),
@@ -44,7 +42,6 @@ class HabitsPanel(ctk.CTkFrame):
             text_color=("gray50", "gray55"),
         ).pack(anchor="w", padx=16, pady=(0, 6))
 
-        # ── Scrollable habits list ───────────────────────────────────────────
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
@@ -68,10 +65,14 @@ class HabitsPanel(ctk.CTkFrame):
             self._make_habit_row(habit)
 
     def _make_habit_row(self, habit: dict):
-        done = self.db.is_habit_done(habit["id"], self.today)
-        streak = self.db.get_streak(habit["id"])
+        done   = self.db.is_habit_done(habit["id"], self.today)
+        status = self.db.get_habit_status(habit["id"])
+        state  = status["status"]
 
-        row = ctk.CTkFrame(self.scroll, height=46, corner_radius=8,
+        has_sublabel = state in ("grace", "restarting")
+        row_h = 62 if has_sublabel else 46
+
+        row = ctk.CTkFrame(self.scroll, height=row_h, corner_radius=8,
                            fg_color=("gray88", "gray17"))
         row.pack(fill="x", pady=2)
         row.pack_propagate(False)
@@ -86,37 +87,73 @@ class HabitsPanel(ctk.CTkFrame):
         ctk.CTkCheckBox(
             row, text="", variable=var, width=24, height=24,
             checkmark_color="white",
-            command=lambda hid=habit["id"], v=var: self._toggle(hid, v),
+            command=lambda hid=habit["id"]: self._toggle(hid),
         ).pack(side="left", padx=(0, 6))
 
-        # Habit name
+        # Right side: streak badge + delete
+        right = ctk.CTkFrame(row, fg_color="transparent")
+        right.pack(side="right", padx=(0, 4))
+
+        ctk.CTkButton(
+            right, text="✕", width=26, height=26,
+            fg_color="transparent",
+            hover_color=("gray75", "gray28"),
+            text_color=("gray55", "gray55"),
+            font=ctk.CTkFont(size=11),
+            command=lambda hid=habit["id"]: self._delete(hid),
+        ).pack(side="right", padx=(0, 2))
+
+        # Streak/status badge
+        if state == "active" and status["streak"] > 0:
+            ctk.CTkLabel(
+                right,
+                text=f"🔥 {status['streak']}",
+                font=ctk.CTkFont(size=11),
+                text_color="#F5A623",
+            ).pack(side="right", padx=(0, 4))
+
+        elif state == "grace":
+            badge = ctk.CTkFrame(right, fg_color="transparent")
+            badge.pack(side="right", padx=(0, 4))
+            ctk.CTkLabel(
+                badge,
+                text=f"🔥 {status['streak']}",
+                font=ctk.CTkFont(size=11),
+                text_color=("gray55", "gray50"),
+            ).pack()
+            ctk.CTkLabel(
+                badge,
+                text=f"{status['days_left']}d to restart",
+                font=ctk.CTkFont(size=9),
+                text_color=("gray55", "gray50"),
+            ).pack()
+
+        elif state == "restarting":
+            badge = ctk.CTkFrame(right, fg_color="transparent")
+            badge.pack(side="right", padx=(0, 4))
+            ctk.CTkLabel(
+                badge,
+                text=f"🔥 {status['restart_progress']}/3",
+                font=ctk.CTkFont(size=11),
+                text_color=("gray55", "gray50"),
+            ).pack()
+            ctk.CTkLabel(
+                badge,
+                text=f"{status['days_left']}d left",
+                font=ctk.CTkFont(size=9),
+                text_color=("gray55", "gray50"),
+            ).pack()
+
+        # Habit name (center, fills remaining space)
         ctk.CTkLabel(
             row, text=habit["name"], anchor="w",
             font=ctk.CTkFont(size=13, overstrike=done),
             text_color=("gray60", "gray55") if done else ("gray10", "gray90"),
         ).pack(side="left", fill="x", expand=True)
 
-        # Streak badge
-        if streak > 0:
-            ctk.CTkLabel(
-                row, text=f"🔥 {streak}",
-                font=ctk.CTkFont(size=11),
-                text_color="#F5A623",
-            ).pack(side="right", padx=(0, 4))
-
-        # Delete button
-        ctk.CTkButton(
-            row, text="✕", width=26, height=26,
-            fg_color="transparent",
-            hover_color=("gray75", "gray28"),
-            text_color=("gray55", "gray55"),
-            font=ctk.CTkFont(size=11),
-            command=lambda hid=habit["id"]: self._delete(hid),
-        ).pack(side="right", padx=(0, 6))
-
     # ── Actions ─────────────────────────────────────────────────────────────
 
-    def _toggle(self, habit_id: int, _var: ctk.BooleanVar):
+    def _toggle(self, habit_id: int):
         self.db.toggle_habit(habit_id, self.today)
         self._load_habits()
 
